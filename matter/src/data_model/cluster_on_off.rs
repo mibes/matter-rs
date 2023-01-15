@@ -17,6 +17,7 @@
 
 use super::objects::*;
 use crate::{
+    callbacks::{AttributeChangeConsumer, AttributeChangeProvider},
     cmd_enter,
     error::*,
     interaction_model::{command::CommandReq, core::IMStatusCode},
@@ -49,12 +50,14 @@ fn attr_on_off_new() -> Result<Attribute, Error> {
 
 pub struct OnOffCluster {
     base: Cluster,
+    attribute_change_consumer: Option<Box<dyn AttributeChangeConsumer>>,
 }
 
 impl OnOffCluster {
     pub fn new() -> Result<Box<Self>, Error> {
         let mut cluster = Box::new(OnOffCluster {
             base: Cluster::new(ID)?,
+            attribute_change_consumer: None,
         });
         cluster.base.add_attribute(attr_on_off_new()?)?;
         Ok(cluster)
@@ -85,8 +88,14 @@ impl ClusterType for OnOffCluster {
                     .read_attribute_raw(Attributes::OnOff as u16)
                     .unwrap();
                 if AttrValue::Bool(true) == *value {
+                    let target_value = AttrValue::Bool(false);
+                    if let Some(attr_change_consumer) = self.attribute_change_consumer.as_mut() {
+                        attr_change_consumer
+                            .attribute_changed(Attributes::OnOff as u16, &target_value)?;
+                    }
+
                     self.base
-                        .write_attribute_raw(Attributes::OnOff as u16, AttrValue::Bool(false))
+                        .write_attribute_raw(Attributes::OnOff as u16, target_value)
                         .map_err(|_| IMStatusCode::Failure)?;
                 }
                 cmd_req.trans.complete();
@@ -99,8 +108,14 @@ impl ClusterType for OnOffCluster {
                     .read_attribute_raw(Attributes::OnOff as u16)
                     .unwrap();
                 if AttrValue::Bool(false) == *value {
+                    let target_value = AttrValue::Bool(true);
+                    if let Some(attr_change_consumer) = self.attribute_change_consumer.as_mut() {
+                        attr_change_consumer
+                            .attribute_changed(Attributes::OnOff as u16, &target_value)?;
+                    }
+
                     self.base
-                        .write_attribute_raw(Attributes::OnOff as u16, AttrValue::Bool(true))
+                        .write_attribute_raw(Attributes::OnOff as u16, target_value)
                         .map_err(|_| IMStatusCode::Failure)?;
                 }
 
@@ -117,12 +132,25 @@ impl ClusterType for OnOffCluster {
                     &AttrValue::Bool(v) => v,
                     _ => false,
                 };
+
+                let target_value = AttrValue::Bool(value);
+                if let Some(attr_change_consumer) = self.attribute_change_consumer.as_mut() {
+                    attr_change_consumer
+                        .attribute_changed(Attributes::OnOff as u16, &target_value)?;
+                }
+
                 self.base
-                    .write_attribute_raw(Attributes::OnOff as u16, AttrValue::Bool(!value))
+                    .write_attribute_raw(Attributes::OnOff as u16, target_value)
                     .map_err(|_| IMStatusCode::Failure)?;
                 cmd_req.trans.complete();
                 Err(IMStatusCode::Sucess)
             }
         }
+    }
+}
+
+impl AttributeChangeProvider for OnOffCluster {
+    fn register_attribute_change_consumer(&mut self, consumer: Box<dyn AttributeChangeConsumer>) {
+        self.attribute_change_consumer = Some(consumer);
     }
 }

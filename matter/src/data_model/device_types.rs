@@ -26,6 +26,8 @@ use super::sdm::noc::NocCluster;
 use super::sdm::nw_commissioning::NwCommCluster;
 use super::system_model::access_control::AccessControlCluster;
 use crate::acl::AclMgr;
+use crate::callbacks::AttributeChangeConsumer;
+use crate::callbacks::AttributeChangeProvider;
 use crate::error::*;
 use crate::fabric::FabricMgr;
 use crate::secure_channel::pake::PaseMgr;
@@ -73,8 +75,15 @@ const DEV_TYPE_ON_OFF_LIGHT: DeviceType = DeviceType {
     drev: 2,
 };
 
-pub fn device_type_add_on_off_light(node: &mut WriteNode) -> Result<u32, Error> {
+pub fn device_type_add_on_off_light(
+    node: &mut WriteNode,
+    attr_change_consumer: Option<Box<dyn AttributeChangeConsumer>>,
+) -> Result<u32, Error> {
     let endpoint = node.add_endpoint(DEV_TYPE_ON_OFF_LIGHT)?;
-    node.add_cluster(endpoint, OnOffCluster::new()?)?;
+    let mut cluster = OnOffCluster::new()?;
+    if let Some(attr_change_consumer) = attr_change_consumer {
+        cluster.register_attribute_change_consumer(attr_change_consumer);
+    }
+    node.add_cluster(endpoint, cluster)?;
     Ok(endpoint)
 }

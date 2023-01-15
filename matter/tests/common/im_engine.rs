@@ -111,7 +111,7 @@ impl ImEngine {
 
         {
             let mut d = dm.node.write().unwrap();
-            let light_endpoint = device_type_add_on_off_light(&mut d).unwrap();
+            let light_endpoint = device_type_add_on_off_light(&mut d, None).unwrap();
             d.add_cluster(0, echo_cluster::EchoCluster::new(2).unwrap())
                 .unwrap();
             d.add_cluster(light_endpoint, echo_cluster::EchoCluster::new(3).unwrap())

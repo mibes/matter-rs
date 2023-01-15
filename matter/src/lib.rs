@@ -68,6 +68,7 @@
 //! Start off exploring by going to the [Matter] object.
 
 pub mod acl;
+pub mod callbacks;
 pub mod cert;
 pub mod codec;
 pub mod core;

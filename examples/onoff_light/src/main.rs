@@ -16,9 +16,12 @@
  */
 
 mod dev_att;
+use matter::callbacks::AttributeChangeConsumer;
 use matter::core::{self, CommissioningData};
 use matter::data_model::cluster_basic_information::BasicInfoConfig;
 use matter::data_model::device_types::device_type_add_on_off_light;
+use matter::data_model::objects::AttrValue;
+use matter::error::Error;
 use matter::secure_channel::spake2p::VerifierData;
 
 fn main() {
@@ -43,11 +46,30 @@ fn main() {
     let mut matter = core::Matter::new(dev_info, dev_att, comm_data).unwrap();
     let dm = matter.get_data_model();
     {
+        let light = Box::new(Light::new());
         let mut node = dm.node.write().unwrap();
-        let endpoint = device_type_add_on_off_light(&mut node).unwrap();
+        let endpoint = device_type_add_on_off_light(&mut node, Some(light)).unwrap();
         println!("Added OnOff Light Device type at endpoint id: {}", endpoint);
         println!("Data Model now is: {}", node);
     }
 
     matter.start_daemon().unwrap();
+}
+
+struct Light;
+
+impl Light {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AttributeChangeConsumer for Light {
+    fn attribute_changed(&mut self, attr_id: u16, value: &AttrValue) -> Result<(), Error> {
+        println!(
+            "Light attribute changed: Attribute: {}, Value: {:?}",
+            attr_id, value
+        );
+        Ok(())
+    }
 }
