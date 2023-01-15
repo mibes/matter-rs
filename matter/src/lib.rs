@@ -60,7 +60,7 @@
 //! {
 //!     let mut node = dm.node.write().unwrap();
 //!     /// Add our device-types
-//!     let endpoint = device_type_add_on_off_light(&mut node).unwrap();
+//!     let endpoint = device_type_add_on_off_light(&mut node, None).unwrap();
 //! }
 //! // Start the Matter Daemon
 //! // matter.start_daemon().unwrap();
