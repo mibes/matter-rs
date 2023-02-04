@@ -19,7 +19,10 @@ use std::time::{Duration, SystemTime};
 
 use crate::{
     error::*,
-    interaction_model::messages::msg::StatusResp,
+    interaction_model::messages::{
+        ib::{Status, StatusResponse},
+        msg::{ReportData, StatusResp},
+    },
     tlv::{self, get_root_node_struct, FromTLV, TLVElement, TLVWriter, TagType, ToTLV},
     transport::{
         exchange::Exchange,
@@ -33,9 +36,9 @@ use log::{error, info};
 use num;
 use num_derive::FromPrimitive;
 
-use super::InteractionModel;
-use super::Transaction;
 use super::TransactionState;
+use super::{messages::msg::SubscribeReq, InteractionModel};
+use super::{messages::msg::SubscribeResp, Transaction};
 use super::{messages::msg::TimedReq, InteractionConsumer};
 
 /* Handle messages related to the Interation Model
@@ -113,10 +116,59 @@ impl InteractionModel {
         trans.set_timeout(req.timeout.into());
 
         let status = StatusResp {
-            status: IMStatusCode::Sucess,
+            status: IMStatusCode::Success,
         };
         let mut tw = TLVWriter::new(proto_tx.get_writebuf()?);
         let _ = status.to_tlv(&mut tw, TagType::Anonymous);
+        Ok(ResponseRequired::Yes)
+    }
+
+    pub fn handle_subscribe_req(
+        &self,
+        _trans: &mut Transaction,
+        rx_buf: &[u8],
+        proto_tx: &mut Packet,
+    ) -> Result<ResponseRequired, Error> {
+        proto_tx.set_proto_opcode(OpCode::ReportData as u8);
+
+        let root = get_root_node_struct(rx_buf)?;
+        let req = SubscribeReq::from_tlv(&root)?;
+
+        info!("Received Subscribe Request: {:?}", req);
+
+        // start the report data background task
+
+        let report = ReportData {
+            subscription_id: 0,
+            attribute_reports: tlv::TLVArray::Slice(&[]),
+            event_reports: tlv::TLVArray::Slice(&[]),
+        };
+
+        let mut tw = TLVWriter::new(proto_tx.get_writebuf()?);
+        let _ = report.to_tlv(&mut tw, TagType::Anonymous);
+        Ok(ResponseRequired::Yes)
+    }
+
+    pub fn handle_status_resp(
+        &self,
+        _trans: &mut Transaction,
+        rx_buf: &[u8],
+        proto_tx: &mut Packet,
+    ) -> Result<ResponseRequired, Error> {
+        proto_tx.set_proto_opcode(OpCode::SubscriptResponse as u8);
+
+        let root = get_root_node_struct(rx_buf)?;
+        let req = StatusResponse::from_tlv(&root)?;
+
+        info!("Received Status Response: {:?}", req);
+
+        let response = SubscribeResp {
+            subscription_id: 0,
+            max_interval: 0,
+        };
+
+        let mut tw = TLVWriter::new(proto_tx.get_writebuf()?);
+        let _ = response.to_tlv(&mut tw, TagType::Anonymous);
         Ok(ResponseRequired::Yes)
     }
 
@@ -162,6 +214,8 @@ impl proto_demux::HandleProto for InteractionModel {
             OpCode::ReadRequest => self.handle_read_req(&mut trans, buf, &mut ctx.tx)?,
             OpCode::WriteRequest => self.handle_write_req(&mut trans, buf, &mut ctx.tx)?,
             OpCode::TimedRequest => self.handle_timed_req(&mut trans, buf, &mut ctx.tx)?,
+            OpCode::SubscribeRequest => self.handle_subscribe_req(&mut trans, buf, &mut ctx.tx)?,
+            OpCode::StatusResponse => self.handle_status_resp(&mut trans, buf, &mut ctx.tx)?,
             _ => {
                 error!("Opcode Not Handled: {:?}", proto_opcode);
                 return Err(Error::InvalidOpcode);
@@ -185,7 +239,7 @@ impl proto_demux::HandleProto for InteractionModel {
 
 #[derive(FromPrimitive, Debug, Clone, Copy, PartialEq)]
 pub enum IMStatusCode {
-    Sucess = 0,
+    Success = 0,
     Failure = 1,
     InvalidSubscription = 0x7D,
     UnsupportedAccess = 0x7E,

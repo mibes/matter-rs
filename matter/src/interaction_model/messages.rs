@@ -71,7 +71,10 @@ pub mod msg {
         tlv::{FromTLV, TLVArray, TLVElement, TLVWriter, TagType, ToTLV},
     };
 
-    use super::ib::{self, AttrData, AttrPath, AttrResp, AttrStatus, CmdData, DataVersionFilter};
+    use super::ib::{
+        self, AttrData, AttrPath, AttrReport, AttrResp, AttrStatus, CmdData, DataVersionFilter,
+        EventFilter, EventPath, EventReport,
+    };
 
     #[derive(FromTLV, ToTLV)]
     pub struct TimedReq {
@@ -81,6 +84,44 @@ pub mod msg {
     #[derive(FromTLV, ToTLV)]
     pub struct StatusResp {
         pub status: IMStatusCode,
+    }
+
+    #[derive(Debug, FromTLV, ToTLV)]
+    #[tlvargs(lifetime = "'a")]
+    pub struct SubscribeReq<'a> {
+        /// false to terminate existing subscriptions from initiator
+        pub keep_subscriptions: Option<bool>,
+        /// the requested minimum interval boundary floor in seconds
+        pub min_interval_floor: Option<u16>,
+        /// the requested maximum interval boundary ceiling in seconds
+        pub max_interval_ceiling: Option<u16>,
+        /// a list of zero or more request paths to cluster attribute data
+        pub attribute_requests: Option<TLVArray<'a, AttrPath>>,
+        /// a list of zero or more request paths to cluster events
+        pub event_requests: Option<TLVArray<'a, EventPath>>,
+        /// a list of zero or more minimum event numbers per specific node
+        pub event_filters: Option<TLVArray<'a, EventFilter>>,
+        pub _reserved: Option<bool>,
+        /// limits the data read within fabric-scoped lists to the accessing fabric
+        pub fabric_filtered: Option<bool>,
+        /// a list of zero or more cluster instance data versions
+        pub data_version_filters: Option<TLVArray<'a, DataVersionFilter>>,
+    }
+
+    #[derive(FromTLV, ToTLV)]
+    pub struct SubscribeResp {
+        /// identifies the subscription
+        pub subscription_id: u32,
+        /// the final maximum interval for the subscription in seconds
+        pub max_interval: u16,
+    }
+
+    #[derive(FromTLV, ToTLV)]
+    #[tlvargs(lifetime = "'a")]
+    pub struct ReportData<'a> {
+        pub subscription_id: u32,
+        pub attribute_reports: TLVArray<'a, AttrReport<'a>>,
+        pub event_reports: TLVArray<'a, EventReport<'a>>,
     }
 
     pub enum InvReqTag {
@@ -259,6 +300,20 @@ pub mod ib {
         }
     }
 
+    #[derive(Debug, Clone, Copy, FromTLV, ToTLV)]
+    #[tlvargs(lifetime = "'a")]
+    pub struct AttrReport<'a> {
+        pub status: Option<AttrStatus>,
+        pub data: Option<AttrData<'a>>,
+    }
+
+    #[derive(Debug, Clone, Copy, FromTLV, ToTLV)]
+    #[tlvargs(lifetime = "'a")]
+    pub struct EventReport<'a> {
+        pub status: Option<EventStatus>,
+        pub data: Option<EventData<'a>>,
+    }
+
     // Status
     #[derive(Debug, Clone, Copy, PartialEq, FromTLV, ToTLV)]
     pub struct Status {
@@ -273,6 +328,12 @@ pub mod ib {
                 cluster_status,
             }
         }
+    }
+
+    // Status
+    #[derive(Debug, Clone, Copy, PartialEq, FromTLV, ToTLV)]
+    pub struct StatusResponse {
+        pub status: IMStatusCode,
     }
 
     // Attribute Response
@@ -315,6 +376,20 @@ pub mod ib {
                 data,
             }
         }
+    }
+
+    // Event Data
+    #[derive(Clone, Copy, PartialEq, FromTLV, ToTLV, Debug)]
+    #[tlvargs(lifetime = "'a")]
+    pub struct EventData<'a> {
+        pub path: EventPath,
+        pub number: u64,
+        pub priority: u8,
+        pub epoch_timestamp: Option<i64>,
+        pub system_timestamp: Option<u64>,
+        pub delta_epoch_timestamp: Option<u64>,
+        pub delta_system_timestamp: Option<u64>,
+        pub data: EncodeValue<'a>,
     }
 
     #[derive(Debug)]
@@ -380,6 +455,12 @@ pub mod ib {
         }
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, FromTLV, ToTLV)]
+    pub struct EventStatus {
+        path: EventPath,
+        status: Status,
+    }
+
     // Attribute Path
     #[derive(Default, Clone, Copy, Debug, PartialEq, FromTLV, ToTLV)]
     #[tlvargs(datatype = "list")]
@@ -405,6 +486,25 @@ pub mod ib {
         pub fn to_gp(&self) -> GenericPath {
             GenericPath::new(self.endpoint, self.cluster, self.attr.map(|x| x as u32))
         }
+    }
+
+    // Event Path
+    #[derive(Default, Clone, Copy, Debug, PartialEq, FromTLV, ToTLV)]
+    #[tlvargs(datatype = "list")]
+    pub struct EventPath {
+        pub node: Option<u64>,
+        pub endpoint: Option<u16>,
+        pub cluster: Option<u32>,
+        pub event: Option<u32>,
+        pub is_urgent: Option<bool>,
+    }
+
+    // Event Filter
+    #[derive(Default, Clone, Copy, Debug, PartialEq, FromTLV, ToTLV)]
+    #[tlvargs(datatype = "list")]
+    pub struct EventFilter {
+        pub node: Option<u64>,
+        pub event_min: Option<u64>,
     }
 
     // Command Path
@@ -460,14 +560,14 @@ pub mod ib {
         }
     }
 
-    #[derive(FromTLV, ToTLV, Copy, Clone)]
+    #[derive(Debug, FromTLV, ToTLV, Copy, Clone)]
     pub struct ClusterPath {
         pub node: Option<u64>,
         pub endpoint: u16,
         pub cluster: u32,
     }
 
-    #[derive(FromTLV, ToTLV, Copy, Clone)]
+    #[derive(FromTLV, ToTLV, Copy, Clone, Debug)]
     pub struct DataVersionFilter {
         pub path: ClusterPath,
         pub data_ver: u32,

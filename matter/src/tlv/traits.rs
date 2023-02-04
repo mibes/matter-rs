@@ -70,7 +70,7 @@ macro_rules! fromtlv_for {
     };
 }
 
-fromtlv_for!(u8 u16 u32 u64 bool);
+fromtlv_for!(u8 u16 u32 i64 u64 bool);
 
 pub trait ToTLV {
     fn to_tlv(&self, tw: &mut TLVWriter, tag: TagType) -> Result<(), Error>;
@@ -99,7 +99,7 @@ impl<T: ToTLV, const N: usize> ToTLV for [T; N] {
 }
 
 // Generate ToTLV for standard data types
-totlv_for!(i8 u8 u16 u32 u64 bool);
+totlv_for!(i8 u8 u16 u32 i64 u64 bool);
 
 // We define a few common data types that will be required here
 //

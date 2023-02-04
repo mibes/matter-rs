@@ -418,6 +418,16 @@ impl<'a> TLVElement<'a> {
         }
     }
 
+    pub fn i64(&self) -> Result<i64, Error> {
+        match self.element_type {
+            ElementType::S8(a) => Ok(a.into()),
+            ElementType::S16(a) => Ok(a.into()),
+            ElementType::S32(a) => Ok(a.into()),
+            ElementType::S64(a) => Ok(a),
+            _ => Err(Error::TLVTypeMismatch),
+        }
+    }
+
     pub fn u64(&self) -> Result<u64, Error> {
         match self.element_type {
             ElementType::U8(a) => Ok(a.into()),
