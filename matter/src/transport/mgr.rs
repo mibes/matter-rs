@@ -131,16 +131,22 @@ impl Mgr {
 
     pub fn start(&mut self) -> Result<(), Error> {
         loop {
+            debug!("Looping in transport mgr...");
+
             // Handle network operations
             if self.handle_rxtx().is_err() {
                 error!("Error in handle_rxtx");
                 continue;
             }
 
+            debug!("Done with handle_rxtx...");
+
             if self.handle_queue_msgs().is_err() {
                 error!("Error in handle_queue_msg");
                 continue;
             }
+
+            debug!("Done with handle_queue_msgs...");
 
             // Handle any pending acknowledgement send
             let mut acks_to_send: LinearMap<u16, (), { exchange::MAX_MRP_ENTRIES }> =

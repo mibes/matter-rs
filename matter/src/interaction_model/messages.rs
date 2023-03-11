@@ -90,11 +90,11 @@ pub mod msg {
     #[tlvargs(lifetime = "'a")]
     pub struct SubscribeReq<'a> {
         /// false to terminate existing subscriptions from initiator
-        pub keep_subscriptions: Option<bool>,
+        pub keep_subscriptions: bool,
         /// the requested minimum interval boundary floor in seconds
-        pub min_interval_floor: Option<u16>,
+        pub min_interval_floor: u16,
         /// the requested maximum interval boundary ceiling in seconds
-        pub max_interval_ceiling: Option<u16>,
+        pub max_interval_ceiling: u16,
         /// a list of zero or more request paths to cluster attribute data
         pub attribute_requests: Option<TLVArray<'a, AttrPath>>,
         /// a list of zero or more request paths to cluster events
@@ -103,7 +103,7 @@ pub mod msg {
         pub event_filters: Option<TLVArray<'a, EventFilter>>,
         pub _reserved: Option<bool>,
         /// limits the data read within fabric-scoped lists to the accessing fabric
-        pub fabric_filtered: Option<bool>,
+        pub fabric_filtered: bool,
         /// a list of zero or more cluster instance data versions
         pub data_version_filters: Option<TLVArray<'a, DataVersionFilter>>,
     }

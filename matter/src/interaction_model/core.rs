@@ -136,7 +136,11 @@ impl InteractionModel {
 
         info!("Received Subscribe Request: {:?}", req);
 
-        // start the report data background task
+        if req.keep_subscriptions {
+            // start the report data background task
+        } else {
+            // terminate background task
+        }
 
         let report = ReportData {
             subscription_id: 0,
