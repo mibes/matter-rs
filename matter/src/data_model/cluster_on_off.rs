@@ -30,7 +30,12 @@ pub enum Attributes {
     OnOff = 0x0,
 }
 
-#[derive(FromPrimitive)]
+struct ClusterCallback {
+    name: Commands,
+    callback: Box<dyn FnMut()>,
+}
+
+#[derive(FromPrimitive, PartialEq)]
 pub enum Commands {
     Off = 0x0,
     On = 0x01,
@@ -49,15 +54,29 @@ fn attr_on_off_new() -> Attribute {
 
 pub struct OnOffCluster {
     base: Cluster,
+    callbacks: Vec<ClusterCallback>,
 }
 
 impl OnOffCluster {
     pub fn new() -> Result<Box<Self>, Error> {
         let mut cluster = Box::new(OnOffCluster {
             base: Cluster::new(ID)?,
+            callbacks: vec![],
         });
         cluster.base.add_attribute(attr_on_off_new())?;
         Ok(cluster)
+    }
+
+    pub fn add_callback(&mut self, name: Commands, callback: Box<dyn FnMut()>) {
+        self.callbacks.push(ClusterCallback { name, callback });
+    }
+
+    fn run_callback(&mut self, name: Commands) {
+        for cmd in self.callbacks.iter_mut() {
+            if cmd.name == name {
+                (cmd.callback)()
+            }
+        }
     }
 }
 
@@ -89,6 +108,7 @@ impl ClusterType for OnOffCluster {
                         .write_attribute_raw(Attributes::OnOff as u16, AttrValue::Bool(false))
                         .map_err(|_| IMStatusCode::Failure)?;
                 }
+                self.run_callback(Commands::Off);
                 cmd_req.trans.complete();
                 Err(IMStatusCode::Success)
             }
@@ -104,6 +124,7 @@ impl ClusterType for OnOffCluster {
                         .map_err(|_| IMStatusCode::Failure)?;
                 }
 
+                self.run_callback(Commands::On);
                 cmd_req.trans.complete();
                 Err(IMStatusCode::Success)
             }
@@ -120,6 +141,7 @@ impl ClusterType for OnOffCluster {
                 self.base
                     .write_attribute_raw(Attributes::OnOff as u16, AttrValue::Bool(!value))
                     .map_err(|_| IMStatusCode::Failure)?;
+                self.run_callback(Commands::Toggle);
                 cmd_req.trans.complete();
                 Err(IMStatusCode::Success)
             }

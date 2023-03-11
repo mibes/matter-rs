@@ -18,6 +18,7 @@
 mod dev_att;
 use matter::core::{self, CommissioningData};
 use matter::data_model::cluster_basic_information::BasicInfoConfig;
+use matter::data_model::cluster_on_off::{Commands, OnOffCluster};
 use matter::data_model::device_types::device_type_add_on_off_light;
 use matter::secure_channel::spake2p::VerifierData;
 
@@ -48,6 +49,15 @@ fn main() {
         let endpoint = device_type_add_on_off_light(&mut node).unwrap();
         println!("Added OnOff Light Device type at endpoint id: {}", endpoint);
         println!("Data Model now is: {}", node);
+
+        let mut on_off_cluster = OnOffCluster::new().unwrap();
+        let on_callback = Box::new(|| log::info!("Comamnd [On] handled with callback."));
+        let off_callback = Box::new(|| log::info!("Comamnd [Off] handled with callback."));
+        on_off_cluster.add_callback(Commands::On, on_callback);
+        on_off_cluster.add_callback(Commands::Off, off_callback);
+
+        node.add_cluster(endpoint, on_off_cluster).unwrap();
+        println!("Added On/Off type at endpoint id: {}", endpoint)
     }
 
     matter.start_daemon().unwrap();
