@@ -71,11 +71,13 @@ impl Matter {
         let mut pase = PaseMgr::new();
         let data_model =
             DataModel::new(dev_det, dev_att, fabric_mgr.clone(), acl_mgr, pase.clone())?;
+
         let mut matter = Box::new(Matter {
-            transport_mgr: transport::mgr::Mgr::new()?,
+            transport_mgr: transport::mgr::Mgr::new().map_err(log_and_continue)?,
             data_model,
             fabric_mgr,
         });
+
         let interaction_model =
             Box::new(InteractionModel::new(Box::new(matter.data_model.clone())));
         matter.transport_mgr.register_protocol(interaction_model)?;

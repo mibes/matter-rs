@@ -430,8 +430,12 @@ impl FabricMgr {
             fabric.label = label;
             let psm = self.psm.lock().unwrap();
             if fabric.store(index, &psm).is_err() {
+                let err_msg = format!(
+                    "Failed to store fabric for {} at index {}",
+                    fabric.label, index
+                );
                 fabric.label = old;
-                return Err(Error::StdIoError);
+                return Err(Error::StdIoError(err_msg));
             }
         }
         Ok(())

@@ -20,9 +20,9 @@ use std::{
 };
 
 use async_channel::{SendError, TryRecvError};
-use log::error;
+use log::{error, warn};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Error {
     AttributeNotFound,
     AttributeIsCustom,
@@ -49,7 +49,7 @@ pub enum Error {
     NoTagFound,
     NotFound,
     PacketPoolExhaust,
-    StdIoError,
+    StdIoError(String),
     SysTimeFail,
     Invalid,
     InvalidAAD,
@@ -71,9 +71,9 @@ pub enum Error {
 }
 
 impl From<std::io::Error> for Error {
-    fn from(_e: std::io::Error) -> Self {
+    fn from(e: std::io::Error) -> Self {
         // Keep things simple for now
-        Self::StdIoError
+        Self::StdIoError(e.to_string())
     }
 }
 
@@ -135,4 +135,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
+}
+
+pub fn log_and_continue(err: Error) -> Error {
+    warn!("{err}");
+    err
 }

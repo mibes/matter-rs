@@ -16,6 +16,7 @@
  */
 
 use crate::error::*;
+use log::debug;
 use smol::net::{Ipv6Addr, UdpSocket};
 
 use super::network::{Address, NetworkInterface};
@@ -34,9 +35,11 @@ pub const MATTER_PORT: u16 = 5540;
 
 impl UdpListener {
     pub fn new() -> Result<UdpListener, Error> {
-        Ok(UdpListener {
+        let listener = UdpListener {
             socket: smol::block_on(UdpSocket::bind((Ipv6Addr::UNSPECIFIED, MATTER_PORT)))?,
-        })
+        };
+        debug!("UDP listener started on port {MATTER_PORT}");
+        Ok(listener)
     }
 }
 
